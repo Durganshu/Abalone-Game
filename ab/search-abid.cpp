@@ -9,6 +9,7 @@
 
 #include "search.h"
 #include "board.h"
+#include <iostream>
 
 class ABIDStrategy: public SearchStrategy
 {
@@ -181,6 +182,7 @@ int ABIDStrategy::alphabeta(int depth, int alpha, int beta)
 	/* best move so far? */
 	if (value > currentValue) {
 	    currentValue = value;
+		std::cout << "\n"<< currentValue << "  " << depth << "\n";
 	    _pv.update(depth, m);
 
 	    if (_sc) _sc->foundBestMove(depth, m, currentValue);

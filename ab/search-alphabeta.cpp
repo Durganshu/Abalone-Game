@@ -23,8 +23,11 @@ private:
   int alphabeta(int depth, int alpha, int beta);
   int alphabeta_parallel(int currentdepth, int alpha, int beta, Board& _board, Evaluator& evaluator);
 
+  /* prinicipal variation found in last search */
+  Variation _pv;
   int _currentMaxDepth;
   Move _currentBestMove;
+  bool _inPV;
   omp_lock_t lockArray[10];
   bool reachedBottom=false;
 };
@@ -42,9 +45,12 @@ void AlphaBetaStrategy::searchBestMove() {
         omp_init_lock(&(lockArray[i]));
     
   int eval;
-  
+  _pv.clear(_maxDepth);
+  _currentBestMove.type = Move::none;
   _currentMaxDepth = 0;
 
+  _inPV = (_pv[0].type != Move::none);
+  
   #pragma omp parallel
   {
      #pragma omp single
@@ -119,9 +125,28 @@ int AlphaBetaStrategy::alphabeta_parallel(int currentdepth, int alpha, int beta,
   MoveList list;
   board.generateMoves(list);
 
-  while(list.getNext(m)){
+  if (_inPV) {
+		m = _pv[currentdepth];
+
+		if ((m.type != Move::none) && (!list.isElement(m, 0, true)))
+	    	m.type = Move::none;
+
+		if (m.type == Move::none){ 
+			#pragma omp critical (update_inPv)
+			{
+				_inPV = false;
+			}
+		}
+	}
+
+  while(true){
 
     bool createThread = false;
+
+    if(m.type == Move::none){ //get next move if not yet taken from pv
+        if(!list.getNext(m))
+          break;
+    }
 
     if(reachedBottom && (currentdepth < _maxDepth - 2)){ //PV-Splitting: Only create threads on PV nodes
             createThread = true;
@@ -147,7 +172,7 @@ int AlphaBetaStrategy::alphabeta_parallel(int currentdepth, int alpha, int beta,
       if (eval > *max)
       {
           *max = eval;
-        
+          _pv.update(currentdepth, m);
           foundBestMove(currentdepth, m, eval);
           
           if (currentdepth == 0)
@@ -185,18 +210,28 @@ int AlphaBetaStrategy::alphabeta_parallel(int currentdepth, int alpha, int beta,
         if(eval > *max){
           // std::cout << currentdepth << " " << omp_get_thread_num() << "\n";
           *max = eval;
+          _pv.update(currentdepth, m);
           foundBestMove(currentdepth, m ,eval);
           if (currentdepth == 0) _currentBestMove = m;
+
+          /* alpha/beta cut off or win position ... */
+	        if (*max>15900 || *max >= beta) {
+		        if (_sc) _sc->finishedNode(currentdepth, _pv.chain(currentdepth));
+			      get_out = true;
+	        }
+  
+	        /* maximize alpha */
+	        if (*max > alpha) alpha = *max;
         }
-        //alpha beta pruning
-        if (eval > alpha)
-        {
-          alpha = eval;
-        }
-        if (beta <= alpha)
-        {
-          get_out = true;
-        }
+        // //alpha beta pruning
+        // if (eval > alpha)
+        // {
+        //   alpha = eval;
+        // }
+        // if (beta <= alpha)
+        // {
+        //   get_out = true;
+        // }
         
         omp_unset_lock(&(lockArray[currentdepth]));
 

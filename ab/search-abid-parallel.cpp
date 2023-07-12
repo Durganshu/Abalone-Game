@@ -12,11 +12,11 @@
 #include "eval.h"
 #include <omp.h>
 
-class ABIDStrategy: public SearchStrategy
+class ABIDParallelStrategy: public SearchStrategy
 {
  public:
-    ABIDStrategy(): SearchStrategy("ABID", 2) {}
-    SearchStrategy* clone() { return new ABIDStrategy(); }
+    ABIDParallelStrategy(): SearchStrategy("ABID-parallel", 4) {}
+    SearchStrategy* clone() { return new ABIDParallelStrategy(); }
 
     Move& nextMove() { return _pv[1]; }
 
@@ -40,7 +40,7 @@ class ABIDStrategy: public SearchStrategy
  * Does iterative deepening and alpha/beta width handling, and
  * calls alpha/beta search
  */
-void ABIDStrategy::searchBestMove()
+void ABIDParallelStrategy::searchBestMove()
 {    
     int alpha = -15000, beta = 15000;
     int nalpha, nbeta, currentValue = 0;
@@ -70,14 +70,14 @@ void ABIDStrategy::searchBestMove()
 // 		std::cout<<"Hey    "<<'\n';
 // }
 
-#pragma omp parallel
-{
-#pragma omp single
-	    currentValue = alphabeta(0, alpha, beta, *_board, *_ev);
-}
+		#pragma omp parallel
+		{
+			#pragma omp single
+	    	currentValue = alphabeta(0, alpha, beta, *_board, *_ev);
+		}
 	    /* stop searching if a win position is found */
 	    if (currentValue > 14900 || currentValue < -14900)
-		_stopSearch = true;
+			_stopSearch = true;
 
 	    /* Don't break out if we haven't found a move */
 	    if (_currentBestMove.type == Move::none)
@@ -122,7 +122,7 @@ void ABIDStrategy::searchBestMove()
  * - first, start with principal variation
  * - depending on depth, we only do depth search for some move types
  */
-int ABIDStrategy::alphabeta(int depth, int alpha, int beta, Board& board, Evaluator& evaluator)
+int ABIDParallelStrategy::alphabeta(int depth, int alpha, int beta, Board& board, Evaluator& evaluator)
 {
 
     // int currentValue = -14999+depth, value;
@@ -155,10 +155,10 @@ int ABIDStrategy::alphabeta(int depth, int alpha, int beta, Board& board, Evalua
 	    	m.type = Move::none;
 
 		if (m.type == Move::none){ 
-#pragma omp critical (update_inPv)
-{
-			_inPV = false;
-}
+			#pragma omp critical (update_inPv)
+			{
+				_inPV = false;
+			}
 		}
 	}
 
@@ -190,15 +190,16 @@ int ABIDStrategy::alphabeta(int depth, int alpha, int beta, Board& board, Evalua
 	}
 	else {
 
-            if (doDepthSearch) {
+
+        if (doDepthSearch) {
 				
 		/* opponent searches for its maximum; but we want the
 		 * minimum: so change sign (for alpha/beta window too!)
 		 */
-		value = -alphabeta(depth+1, -beta, -alpha, board, evaluator);
-            }
-            else {
-		value = evaluator.calcEvaluation(&board);
+			value = -alphabeta(depth+1, -beta, -alpha, board, evaluator);
+        }
+        else {
+			value = evaluator.calcEvaluation(&board);
 	    }
 	}
 	
@@ -207,6 +208,7 @@ int ABIDStrategy::alphabeta(int depth, int alpha, int beta, Board& board, Evalua
 	omp_set_lock(&(lockArray[depth]));
 	/* best move so far? */
 	if (value > *currentValue) {
+		std::cout << "\n"<< *currentValue << "  " << depth << "\n";
 	    *currentValue = value;
 	    _pv.update(depth, m);
 		
@@ -239,4 +241,4 @@ int ABIDStrategy::alphabeta(int depth, int alpha, int beta, Board& board, Evalua
 }
 
 // register ourselve
-ABIDStrategy abidStrategy;
+ABIDParallelStrategy abidParallelStrategy;
