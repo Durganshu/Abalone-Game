@@ -1,4 +1,4 @@
-# Efficient Programming of Multicore Systems and Supercomputers
+# Abalone Game
 
 
 
