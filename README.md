@@ -1,92 +1,132 @@
 # Abalone Game
 
+Abalone is a board game of class "2-Person Zero-Sum Game with Complete Information". Zero-sum means that an advantage of one player is exactly the disadvantage of his opponent. Complete information is given as there is no randomness or unknown information for the players in the game (such as dice or hidden cards).
+
+Rules of Abalone are available at
+
+  [https://ultraboardgames.com/abalone/game-rules.php](https://ultraboardgames.com/abalone/game-rules.php)
+
+We've implemented our search strategy to the base version of Abalone by Josef Weidendorfer.
+
+The complete base code consists of network protocols, evaluation strategy, and search strategies: 'ABID' and 'OneLevel'. We've implemented 'MinMax', based on the Mini-Max search algorithm, and 'AlphaBeta', based on the Alpha-beta pruning of the Mini-Max search algorithm. 'AlphaBeta' is OpenMP enabled and uses PV splitting (more on this in the later sections) for achieving parallelism.
 
 
-## Getting started
+Network protocol
+========================
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+The network protocol is based on broadcasting board states on a virtual communication bus, identified by a host/port TCP address, on which one of the communicating game processes listens. The default is "localhost:23412"; two game processes started on one machine automatically can exchange data.
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+The default bus ID can be overridden by command line options "-p <port>" and "-h <hostname>." If something goes wrong, debug information is printed via "-v" or "-vv" (more verbose). Every process first opens a listening socket on the port address provided for others to be able to send a message to the process.
+If a port is already used, the next port number is tried. This way, multiple processes can run on one machine.
 
-## Add your files
+Processes on a virtual communication bus know each other. Broadcasts are multiple messages sent to all communication partners. For every message, a new TCP connection is opened and afterward closed again. This improves reliability if processes are crashing.
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+Search Strategies
+========================
 
+Coming soon...
+
+Usage
+========================
+
+Dependencies
+------------------------
+
+- g++ or Intel C++ compiler (icpc)
+- make
+- git
+- OpenMP
+
+Installation
+------------------------
+
+```shell
+git clone https://github.com/Durganshu/Abalone-Game.git
+cd Abalone-Game
+make
 ```
-cd existing_repo
-git remote add origin https://gitlab.lrz.de/durganshu/efficient-programming-of-multicore-systems-and-supercomputers.git
-git branch -M main
-git push -uf origin main
+
+Program "player"
+------------------------
+
+This is a computer player using a given stone color. Colors are either "O" (default) or "X" and can be specified as a command line parameter. E.g., to play color X, use `./player X`. 
+
+A computer strength can be specified as another command line parameter and is forwarded to the gameplay strategy used. However, one can think of strategies where strength is unnecessary, e.g., when playing against time. Whenever the player receives a board position where his color is about to draw, he starts "thinking," after finding a move, he broadcasts the resulting board position.
+
+To get more details and parameters, use the following:
+`./player --help`
+
+
+Program "start"
+----------------
+
+This starts programs by broadcasting a specified position, defaulting to the starting position of Abalone.  After that, it observes the communication bus and logs any received positions to the terminal. Other positions may be specified by a file containing a position in ASCII art (using the same style as "start" when logging positions to the terminal).
+
+To get more details and parameters, use the following:
+`./start --help`
+
+Program "referee"
+------------------
+
+First, this does the same as "start" but uses two communication buses. Afterward, it forwards game positions between these two busses and checks whether subsequent game positions follow the game rules. If not, the referee complains and does not forward the position. Game positions are numbered and contain a time. Both are corrected by the referee if needed. This way, players cannot cheat. However, using a referee is optional.
+
+The referee forwards a game position only if it has detected another process running on the other bus. It blocks until a process appears.
+
+To get more details and parameters, use the following:
+`./referee --help`
+
+Starting the game (on one machine):
+-----------------------
+
+Without referee:
+
+```shell
+./player O & ./player X & ./start
+ ```
+
+With referee:
+ ```shell
+./player -p 3000 O & ./player -p 4000 X & ./referee -p 3000 -p 4000
+```
+ 
+Four different strategies are available, with 'AlphaBeta' being the default strategy (-s 0).
+
+Any other strategy can be selected using the '-s ' flag while running the executable.
+
+```shell
+./player O -s 0 4 & ./player X -s 1 3 & ./start
 ```
 
-## Integrate with your tools
+If you want more details, use the '--help' flag with the executable.
 
-- [ ] [Set up project integrations](https://gitlab.lrz.de/durganshu/efficient-programming-of-multicore-systems-and-supercomputers/-/settings/integrations)
+The order of starting the programs does not matter. Similarly, if a program crashes or is killed, you can continue gameplay by restarting the terminated player.
 
-## Collaborate with your team
+With players on different machines using SSH tunneling
+--------------------------------------------------------------
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+One player should run on the local host "local" (O) and one (X) on the host "remote", which is only reachable via SSH. As we want "start" to observe the game on the local host, the remote must be able to open two connections to the local host. Thus, we need 3 tunnels: one from local to remove and two from remote to local.
 
-## Test and Deploy
+```shell
+ssh -L 5000:localhost:5000 \
+    -R 5001:localhost:5001 -R 5002:localhost:5002 remote
+remote> ./player -p 5000 O
+local>./player -p 5000 X &
+local>./start -p 5000
+```
+Contributing to this repository
+========================================================================
 
-Use the built-in continuous integration in GitLab.
+Implementing your strategy
+--------------------------------------------------------------
+Check out [search-onelevel.cpp](https://github.com/Durganshu/Abalone-Game/blob/main/search-onelevel.cpp) to see what is needed to write your strategy. Documentation is found in the comments. For another strategy (or parallelization with OpenMP), use this file as a template, and give the strategy a new name, which then can be specified for "player" by using the command line option "-s <strategy>". Run a player with "-h" for a list of compiled-in strategies.
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+For MPI, change players' main() in a way that rank 0 starts the already existing code, and all other MPI ranks should directly branch to your worker code for your strategy, waiting on requests from rank 0 (i.e., master-slave structure).
 
-***
+Implementing your evaluation strategy
+--------------------------------------------------------------
+Another possibility of a contribution is through making a new evaluation strategy. Check [eval.cpp](https://github.com/Durganshu/Abalone-Game/blob/main/eval.cpp)https://github.com/Durganshu/Abalone-Game/blob/main/eval.cpp for more details.
 
-# Editing this README
+Contact
+========================================================================
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Feel free to drop an email to [me](mailto:durganshu.mishra@tum.de) for any feedbacks or possible collaborations.
