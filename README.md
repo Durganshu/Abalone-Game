@@ -124,7 +124,7 @@ For MPI, change players' main() in a way that rank 0 starts the already existing
 
 Implementing your evaluation strategy
 --------------------------------------------------------------
-Another possibility of a contribution is through making a new evaluation strategy. Check [eval.cpp](https://github.com/Durganshu/Abalone-Game/blob/main/eval.cpp)https://github.com/Durganshu/Abalone-Game/blob/main/eval.cpp for more details.
+Another possibility of a contribution is through making a new evaluation strategy. Check [eval.cpp](https://github.com/Durganshu/Abalone-Game/blob/main/eval.cpp) for more details.
 
 Contact
 ========================================================================
