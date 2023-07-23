@@ -129,4 +129,4 @@ Another possibility of a contribution is through making a new evaluation strateg
 Contact
 ========================================================================
 
-Feel free to drop an email to [me](mailto:durganshu.mishra@tum.de) for any feedbacks or possible collaborations.
+Feel free to drop an [email](mailto:durganshu.mishra@tum.de) for any feedback or possible collaborations.
