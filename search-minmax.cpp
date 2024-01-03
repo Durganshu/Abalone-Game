@@ -1,9 +1,12 @@
 /**
- * Very simple example strategy:
- * Search all possible positions reachable via one move,
- * and return the move leading to best position
+ * 
+ * Implementation of sequential Minimax strategy
+ * 
+ * Authors:
+ * - Aditya Phopale
+ * - Durganshu Mishra
+ * - Gaurav Gokhale
  *
- * (c) 2006, Josef Weidendorfer
  */
 
 #include "search.h"
