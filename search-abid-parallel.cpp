@@ -1,8 +1,9 @@
 /**
- * A real world, sequential strategy:
+ * A real world, parallel strategy:
  * Alpha/Beta with Iterative Deepening (ABID)
  *
- * (c) 2005, Josef Weidendorfer
+ * Original sequential strategy: 2005, Josef Weidendorfer
+ * Parallel implementation: Aditya Phopale, Durganshu Mishra and Gaurav Gokhale
  */
 
 #include <stdio.h>
